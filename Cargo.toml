@@ -13,8 +13,6 @@ clap = "^3.0.0-beta.2"
 color-eyre = { version = "0.5", default-features = false }
 fern = "0.6"
 log = "0.4"
-once_cell = "1.4.1"
-regex = { version = "1", features = ["perf", "perf-cache", "perf-dfa", "perf-inline", "perf-literal"] }
 tokio = { version = "0.3", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "stream", "sync"] }
 
 [profile.dev.package.backtrace]

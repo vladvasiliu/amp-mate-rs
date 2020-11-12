@@ -5,16 +5,12 @@
 //! Behaviour should be similar on other models of the same family.
 
 use crate::controller::rotel::protocol::constants::*;
-use crate::controller::rotel::protocol::patterns::*;
 use color_eyre::eyre::{eyre, Report, Result};
-use once_cell::sync::Lazy;
-use regex::bytes::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
 use std::convert::TryFrom;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
 pub mod constants;
-pub mod patterns;
 
 #[derive(Debug)]
 pub struct Volume(u8);
@@ -124,89 +120,38 @@ impl From<Volume> for RotelCommand {
 
 /// Messages received from the amp
 #[derive(Debug)]
-pub enum RotelMessage {
+pub enum RotelResponse {
     Power(bool),
     Volume(Volume),
     Mute(bool),
     Unknown(String),
 }
 
-impl TryFrom<&[u8]> for RotelMessage {
+impl TryFrom<&[u8]> for RotelResponse {
     type Error = Report;
 
     fn try_from(in_msg: &[u8]) -> Result<Self> {
-        if !in_msg.is_ascii() {
-            return Err(eyre!("Received unexpected non-ascii message".to_string(),));
-        }
-        let matches: Vec<_> = ROTEL_MSG_REGEX.matches(in_msg).into_iter().collect();
-        if matches.len() != 1 {
-            return Err(eyre!("Failed to parse message."));
-        }
-        ROTEL_MSG_READERS[0].parse(in_msg)
+        let msg =
+            std::str::from_utf8(in_msg).map_err(|err| eyre!("message is not UTF-8: {:?}", err))?;
+        let delim_index = msg
+            .find('=')
+            .ok_or_else(|| eyre!("received message doesn't match expected pattern"))?;
+        let (cmd, value) = msg.split_at(delim_index);
+        let value = &value[1..];
+        let rotel_message = match cmd {
+            "volume" => RotelResponse::Volume(value.parse::<Volume>()?),
+            "power" => RotelResponse::Power(parse_on_off(value)?),
+            "mute" => RotelResponse::Mute(parse_on_off(value)?),
+            _ => RotelResponse::Unknown(msg.into()),
+        };
+        Ok(rotel_message)
     }
 }
 
-pub struct RotelMessageParser {
-    pub regex: Regex,
-    pub parser: fn(&str) -> Result<RotelMessage>,
-}
-
-impl RotelMessageParser {
-    pub fn new(pattern: &str, parser: fn(&str) -> Result<RotelMessage>) -> Result<Self> {
-        let mut regex_builder = RegexBuilder::new(&format!("^{}$", pattern));
-        regex_builder.case_insensitive(true);
-        regex_builder.unicode(false);
-        Ok(Self {
-            regex: regex_builder.build()?,
-            parser,
-        })
-    }
-
-    pub fn parse(&self, in_msg: &[u8]) -> Result<RotelMessage> {
-        let captures = self
-            .regex
-            .captures(in_msg)
-            .ok_or_else(|| eyre!("Failed to match pattern to input.".to_string()))?;
-        let m = &captures
-            .name("value")
-            .ok_or_else(|| eyre!("Failed to match value".to_string()))?;
-        let value = std::str::from_utf8(m.as_bytes())
-            .map_err(|e| eyre!(format!("Message is not UTF-8: {}", e)))?;
-        let parser = self.parser;
-        parser(value)
+fn parse_on_off(value: &str) -> Result<bool> {
+    match value {
+        "on" => Ok(true),
+        "off" => Ok(false),
+        _ => Err(eyre!("value must be 'on' or 'off'")),
     }
 }
-
-fn parse_volume(value: &str) -> Result<RotelMessage> {
-    let volume = value.parse()?;
-    Ok(RotelMessage::Volume(volume))
-}
-
-fn parse_mute(value: &str) -> Result<RotelMessage> {
-    let muted = match value {
-        "on" => true,
-        "off" => false,
-        _ => {
-            return Err(eyre!(format!(
-                "Failed to parse mute. Invalid value: {}",
-                value
-            )))
-        }
-    };
-    Ok(RotelMessage::Mute(muted))
-}
-
-pub static ROTEL_MSG_READERS: Lazy<Vec<RotelMessageParser>> = Lazy::new(|| {
-    vec![
-        RotelMessageParser::new(VOLUME_PATTERN, parse_volume).unwrap(),
-        RotelMessageParser::new(MUTE_PATTERN, parse_mute).unwrap(),
-    ]
-});
-
-static ROTEL_MSG_REGEX: Lazy<RegexSet> = Lazy::new(|| {
-    let patterns: Vec<&str> = ROTEL_MSG_READERS.iter().map(|x| x.regex.as_str()).collect();
-    let mut builder = RegexSetBuilder::new(&patterns);
-    builder.case_insensitive(true);
-    builder.unicode(false);
-    builder.build().unwrap()
-});

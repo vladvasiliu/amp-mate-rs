@@ -1,12 +1,11 @@
 mod protocol;
 
-use super::{EntityController, EntityMessage};
-use crate::controller::rotel::protocol::{RotelCommand, RotelMessage, Volume};
+use super::EntityController;
+use crate::controller::rotel::protocol::{RotelCommand, RotelResponse, Volume};
 use async_trait::async_trait;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::Result;
 use log::{info, warn};
 use protocol::RotelQuery;
-use regex::bytes::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
 use std::convert::TryFrom;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
@@ -44,7 +43,7 @@ async fn read_from_amp(amp_stream: &mut (impl AsyncRead + Unpin)) -> Result<()> 
     let mut command_reader = buffered_reader.split(b'$');
     while let Some(segment) = command_reader.next_segment().await?.as_deref() {
         // match protocol::decode_amp_message(&segment) {
-        match RotelMessage::try_from(segment) {
+        match RotelResponse::try_from(segment) {
             Err(e) => warn!("{}", e),
             Ok(msg) => info!("Read msg: {:#?}", msg),
         }
