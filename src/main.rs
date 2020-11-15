@@ -2,10 +2,13 @@ mod config;
 mod controller;
 
 use crate::config::get_config;
+use crate::controller::protocol::{Change, RotelCommand, Volume};
+use crate::controller::RotelController;
 use color_eyre::eyre::Result;
-use controller::RotelController;
-use log::LevelFilter;
+use log::{info, LevelFilter};
+use std::convert::TryFrom;
 use tokio::sync::mpsc::channel;
+use tokio::task;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -16,11 +19,19 @@ async fn main() -> Result<()> {
 
     let address: String = config.value_of_t_or_exit::<String>("amp");
     let (command_channel_tx, command_channel_rx) = channel(8);
-    let (response_channel_tx, reponse_channel_rx) = channel(8);
-    let mut rotel = RotelController::new(address, command_channel_rx, response_channel_tx);
-    rotel.run().await?;
-
-    Ok(())
+    let (response_channel_tx, mut response_channel_rx) = channel(8);
+    let rotel = RotelController::new(address);
+    let run_handle =
+        task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
+    command_channel_tx
+        .send(RotelCommand::Set(Change::Volume(
+            Volume::try_from(10).unwrap(),
+        )))
+        .await?;
+    while let Some(response) = response_channel_rx.recv().await {
+        info!("{:?}", response);
+    }
+    run_handle.await?
 }
 
 fn setup_logger(level: log::LevelFilter) -> Result<(), fern::InitError> {

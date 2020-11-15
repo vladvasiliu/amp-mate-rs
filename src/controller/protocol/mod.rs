@@ -14,7 +14,7 @@ use std::str::FromStr;
 pub mod constants;
 
 pub trait ToRotel {
-    fn to_rotel(&self) -> &[u8];
+    fn to_rotel(&self) -> String;
 }
 
 #[derive(Debug)]
@@ -124,6 +124,7 @@ impl std::fmt::Display for Dimmer {
 /// Feedback request commands
 ///
 /// These commands are used to query the state of the amp. They do not change the state.
+#[derive(Debug)]
 pub enum RotelQuery {
     Power,
     Volume,
@@ -136,10 +137,10 @@ pub enum RotelQuery {
     Model,
 }
 
-impl From<RotelQuery> for &'static str {
-    fn from(query: RotelQuery) -> Self {
+impl ToRotel for RotelQuery {
+    fn to_rotel(&self) -> String {
         use RotelQuery::*;
-        match query {
+        let msg = match self {
             Power => "power?",
             Volume => "volume?",
             Source => "source?",
@@ -149,14 +150,8 @@ impl From<RotelQuery> for &'static str {
             Dimmer => "dimmer?",
             Version => "version?",
             Model => "model?",
-        }
-    }
-}
-
-impl From<RotelQuery> for &[u8] {
-    fn from(query: RotelQuery) -> Self {
-        let msg: &str = query.into();
-        msg.as_bytes()
+        };
+        msg.to_string()
     }
 }
 
@@ -164,22 +159,38 @@ impl From<RotelQuery> for &[u8] {
 ///
 /// These commands are used to change the state of the amp.
 /// For commands taking a boolean, `true` means 'on' and `false` means 'off'.
-pub enum RotelCommand {
+#[derive(Debug)]
+pub enum Change {
     Mute(StateToggle),
     Power(StateToggle),
     Volume(Volume),
 }
 
-impl RotelCommand {
-    pub fn build_command(&self) -> String {
+impl Change {
+    pub fn to_rotel(&self) -> String {
         format!(
             "{}!",
             match self {
-                RotelCommand::Mute(value) => format!("mute_{}", value),
-                RotelCommand::Power(value) => format!("power_{}", value),
-                RotelCommand::Volume(volume) => format!("vol_{:02}", volume.0),
+                Change::Mute(value) => format!("mute_{}", value),
+                Change::Power(value) => format!("power_{}", value),
+                Change::Volume(volume) => format!("vol_{:02}", volume.0),
             }
         )
+    }
+}
+
+#[derive(Debug)]
+pub enum RotelCommand {
+    Set(Change),
+    Get(RotelQuery),
+}
+
+impl RotelCommand {
+    pub fn to_rotel(&self) -> String {
+        match self {
+            Self::Set(change) => change.to_rotel(),
+            Self::Get(query) => query.to_rotel(),
+        }
     }
 }
 
