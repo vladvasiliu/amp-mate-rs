@@ -4,13 +4,46 @@
 //! It is based and tested on the RA-1572.
 //! Behaviour should be similar on other models of the same family.
 
-use crate::controller::rotel::protocol::constants::*;
+use self::constants::*;
 use color_eyre::eyre::{eyre, Report, Result};
 use std::convert::TryFrom;
+use std::fmt::Formatter;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
 pub mod constants;
+
+pub trait ToRotel {
+    fn to_rotel(&self) -> &[u8];
+}
+
+#[derive(Debug)]
+pub enum StateToggle {
+    On,
+    Off,
+}
+
+impl FromStr for StateToggle {
+    type Err = Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "on" => Ok(Self::On),
+            "off" => Ok(Self::Off),
+            _ => Err(eyre!("wrong value for state: {}", s)),
+        }
+    }
+}
+
+impl std::fmt::Display for StateToggle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let output = match self {
+            Self::On => "on",
+            Self::Off => "off",
+        };
+        write!(f, "{}", output)
+    }
+}
 
 #[derive(Debug)]
 pub struct Volume(u8);
@@ -41,6 +74,50 @@ impl FromStr for Volume {
             eyre!(format!("Failed to parse volume: {}", err.to_string()))
         })?;
         Self::try_from(value)
+    }
+}
+
+impl std::fmt::Display for Volume {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug)]
+pub struct Dimmer(u8);
+
+impl TryFrom<u8> for Dimmer {
+    type Error = Report;
+
+    fn try_from(value: u8) -> Result<Self> {
+        if value > MAX_DIMMER {
+            Err(eyre!("value for volume is out of bounds: {}", value))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl From<Dimmer> for u8 {
+    fn from(volume: Dimmer) -> u8 {
+        volume.0
+    }
+}
+
+impl FromStr for Dimmer {
+    type Err = Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: u8 = s.parse().map_err(|err: ParseIntError| {
+            eyre!(format!("Failed to parse dimmer: {}", err.to_string()))
+        })?;
+        Self::try_from(value)
+    }
+}
+
+impl std::fmt::Display for Dimmer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -88,8 +165,8 @@ impl From<RotelQuery> for &[u8] {
 /// These commands are used to change the state of the amp.
 /// For commands taking a boolean, `true` means 'on' and `false` means 'off'.
 pub enum RotelCommand {
-    Mute(bool),
-    Power(bool),
+    Mute(StateToggle),
+    Power(StateToggle),
     Volume(Volume),
 }
 
@@ -98,32 +175,20 @@ impl RotelCommand {
         format!(
             "{}!",
             match self {
-                RotelCommand::Mute(value) => {
-                    let state = if *value { "on" } else { "off" };
-                    format!("mute_{}", state)
-                }
-                RotelCommand::Power(value) => {
-                    let state = if *value { "on" } else { "off" };
-                    format!("power_{}", state)
-                }
+                RotelCommand::Mute(value) => format!("mute_{}", value),
+                RotelCommand::Power(value) => format!("power_{}", value),
                 RotelCommand::Volume(volume) => format!("vol_{:02}", volume.0),
             }
         )
     }
 }
 
-impl From<Volume> for RotelCommand {
-    fn from(volume: Volume) -> Self {
-        Self::Volume(volume)
-    }
-}
-
 /// Messages received from the amp
 #[derive(Debug)]
 pub enum RotelResponse {
-    Power(bool),
+    Power(StateToggle),
     Volume(Volume),
-    Mute(bool),
+    Mute(StateToggle),
     Unknown(String),
 }
 
@@ -140,18 +205,10 @@ impl TryFrom<&[u8]> for RotelResponse {
         let value = &value[1..];
         let rotel_message = match cmd {
             "volume" => RotelResponse::Volume(value.parse::<Volume>()?),
-            "power" => RotelResponse::Power(parse_on_off(value)?),
-            "mute" => RotelResponse::Mute(parse_on_off(value)?),
+            "power" => RotelResponse::Power(value.parse::<StateToggle>()?),
+            "mute" => RotelResponse::Mute(value.parse::<StateToggle>()?),
             _ => RotelResponse::Unknown(msg.into()),
         };
         Ok(rotel_message)
-    }
-}
-
-fn parse_on_off(value: &str) -> Result<bool> {
-    match value {
-        "on" => Ok(true),
-        "off" => Ok(false),
-        _ => Err(eyre!("value must be 'on' or 'off'")),
     }
 }

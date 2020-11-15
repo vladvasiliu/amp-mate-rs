@@ -3,9 +3,9 @@ mod controller;
 
 use crate::config::get_config;
 use color_eyre::eyre::Result;
-use controller::rotel::RotelController;
-use controller::EntityController;
+use controller::RotelController;
 use log::LevelFilter;
+use tokio::sync::mpsc::channel;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,7 +15,9 @@ async fn main() -> Result<()> {
     let config = get_config();
 
     let address: String = config.value_of_t_or_exit::<String>("amp");
-    let rotel = RotelController { address };
+    let (command_channel_tx, command_channel_rx) = channel(8);
+    let (response_channel_tx, reponse_channel_rx) = channel(8);
+    let mut rotel = RotelController::new(address, command_channel_rx, response_channel_tx);
     rotel.run().await?;
 
     Ok(())
