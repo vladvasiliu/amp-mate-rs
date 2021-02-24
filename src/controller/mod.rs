@@ -18,6 +18,15 @@ impl RotelController {
         Self { address }
     }
 
+    /// Sends a command to the amp and returns an error if sending failed.
+    pub async fn one_shot(&self, command: RotelCommand) -> Result<()> {
+        let mut stream = TcpStream::connect(&self.address).await?;
+        info!("Connected to {}", stream.peer_addr()?);
+        stream.set_nodelay(true)?;
+        stream.write_all(command.to_rotel().as_bytes()).await?;
+        Ok(())
+    }
+
     pub async fn run(
         &self,
         command_channel: Receiver<RotelCommand>,

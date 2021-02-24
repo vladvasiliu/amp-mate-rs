@@ -179,6 +179,17 @@ impl Change {
     }
 }
 
+impl std::fmt::Display for Change {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            Self::Mute(mute) => format!("Mute: {}", mute),
+            Self::Power(power) => format!("Power: {}", power),
+            Self::Volume(volume) => format!("Volume: {}", volume),
+        };
+        write!(f, "Change: {}", msg)
+    }
+}
+
 #[derive(Debug)]
 pub enum RotelCommand {
     Set(Change),

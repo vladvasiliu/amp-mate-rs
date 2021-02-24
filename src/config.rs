@@ -1,4 +1,4 @@
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg, ArgMatches, ArgGroup};
 
 pub fn get_config() -> ArgMatches {
     App::new("Amp Mate")
@@ -11,5 +11,27 @@ pub fn get_config() -> ArgMatches {
                 .takes_value(true)
                 .required(true),
         )
+        .arg(Arg::new("follow")
+            .short('f')
+            .long("follow")
+            .about("Follow amp output")
+            .takes_value(false)
+        )
+        .group(ArgGroup::new("one-shot")
+            .args(&["volume", "mute"])
+            .conflicts_with("follow")
+        )
+        .arg(Arg::new("volume")
+            .short('v')
+            .long("volume")
+            .value_name("VOLUME")
+            .about("Set volume")
+            .takes_value(true))
+        .arg(Arg::new("mute")
+            .short('m')
+            .long("mute")
+            .value_name("MUTE")
+            .about("Set mute")
+            .takes_value(true))
         .get_matches()
 }
