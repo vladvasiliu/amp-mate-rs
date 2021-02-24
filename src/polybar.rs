@@ -11,11 +11,12 @@ struct RotelStatus {
 pub struct PolybarOutput {
     command_channel: Sender<RotelCommand>,
     response_channel: Receiver<RotelResponse>,
+    icon: &'static str,
 }
 
 impl PolybarOutput {
     pub fn new(command_channel: Sender<RotelCommand>, response_channel: Receiver<RotelResponse>,) -> Self {
-        Self {command_channel, response_channel}
+        Self {command_channel, response_channel, icon: "Rotel"}
     }
 
     async fn query_status(&mut self) -> Result<RotelStatus> {
@@ -37,17 +38,25 @@ impl PolybarOutput {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let icon = "R";
         let mut status = self.query_status().await?;
-        println!("R: {:?}", status);
+        self.print_status(&status);
         while let Some(response) = self.response_channel.recv().await {
             match response {
                 RotelResponse::Volume(val) => status.volume = val,
                 RotelResponse::Mute(val) => status.mute = val,
                 _ => continue,
             }
-            println!("{}: {:?}", icon, status);
+            self.print_status(&status);
         }
         Ok(())
+    }
+
+    fn print_status(&self, status: &RotelStatus) {
+        let color = if status.mute == StateToggle::On {
+            "f00"
+        } else {
+            "fff"
+        };
+        println!("{icon}: %{{F#{color}}}{value}%{{F-}}", icon = self.icon, color = color, value = status.volume);
     }
 }

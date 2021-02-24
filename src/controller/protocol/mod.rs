@@ -47,7 +47,7 @@ impl std::fmt::Display for Direction {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StateToggle {
     On,
     Off,
