@@ -1,7 +1,6 @@
 use crate::controller::protocol::{RotelResponse, StateToggle, Volume, RotelCommand, RotelQuery};
 use color_eyre::eyre::{eyre, Result};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::task;
 
 #[derive(Debug)]
 struct RotelStatus {

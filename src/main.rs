@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     } else {
         info!("Running in follow mode");
         let (command_channel_tx, command_channel_rx) = channel(8);
-        let (response_channel_tx, mut response_channel_rx) = channel(8);
+        let (response_channel_tx, response_channel_rx) = channel(8);
         let mut polybar_output = PolybarOutput::new(command_channel_tx.clone(), response_channel_rx);
 
         let rotel_handle =
@@ -48,6 +48,9 @@ async fn main() -> Result<()> {
                     };
                     command_channel_tx.send(command).await?;
                 }
+                // Can't define the return type for an async block
+                // https://rust-lang.github.io/async-book/07_workarounds/02_err_in_async_blocks.html
+                #[allow(unreachable_code)]
                 Ok::<(), Report>(())
             });
 
