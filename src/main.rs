@@ -3,13 +3,14 @@ mod controller;
 mod polybar;
 
 use crate::config::get_config;
-use crate::controller::protocol::{Change, RotelCommand, Volume, StateToggle};
+use crate::controller::protocol::{Change, Direction, RotelCommand, Volume, StateToggle};
 use crate::controller::RotelController;
-use color_eyre::eyre::{Result};
+use color_eyre::eyre::{Result, Report};
 use log::{info, LevelFilter};
 use tokio::sync::mpsc::channel;
 use tokio::{select, task};
 use crate::polybar::PolybarOutput;
+use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,15 +32,29 @@ async fn main() -> Result<()> {
         info!("Running in follow mode");
         let (command_channel_tx, command_channel_rx) = channel(8);
         let (response_channel_tx, mut response_channel_rx) = channel(8);
-        let mut polybar_output = PolybarOutput::new(command_channel_tx, response_channel_rx);
+        let mut polybar_output = PolybarOutput::new(command_channel_tx.clone(), response_channel_rx);
 
         let rotel_handle =
             task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
         let polybar_handle = task::spawn(async move { polybar_output.run().await });
+        let signal_listener = tokio::spawn(
+            async move {
+                loop {
+                    let mut usr1_stream = signal(SignalKind::user_defined1())?;
+                    let mut usr2_stream = signal(SignalKind::user_defined2())?;
+                    let command = select! {
+                        _ = usr1_stream.recv() => { RotelCommand::Set(Change::Volume(Volume::Direction(Direction::Up)))}
+                        _ = usr2_stream.recv() => { RotelCommand::Set(Change::Volume(Volume::Direction(Direction::Down)))}
+                    };
+                    command_channel_tx.send(command).await?;
+                }
+                Ok::<(), Report>(())
+            });
 
         select! {
             _ = rotel_handle => {}
             _ = polybar_handle => {}
+            _ = signal_listener => {}
         }
     }
     Ok(())
