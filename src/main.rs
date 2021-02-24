@@ -4,9 +4,8 @@ mod controller;
 use crate::config::get_config;
 use crate::controller::protocol::{Change, RotelCommand, Volume, StateToggle};
 use crate::controller::RotelController;
-use color_eyre::eyre::{eyre, Result};
-use log::{error, info, LevelFilter};
-use std::convert::TryFrom;
+use color_eyre::eyre::{Result};
+use log::{info, LevelFilter};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
@@ -26,23 +25,18 @@ async fn main() -> Result<()> {
     } else if config.is_present("mute") {
         let mute: StateToggle = config.value_of_t_or_exit("mute");
         rotel.one_shot(RotelCommand::Set(Change::Mute(mute))).await?;
+    } else {
+        info!("Running in follow mode");
+        let (_command_channel_tx, command_channel_rx) = channel(8);
+        let (response_channel_tx, mut response_channel_rx) = channel(8);
+        let run_handle =
+            task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
+        while let Some(response) = response_channel_rx.recv().await {
+            info!("Rotel sent: {:?}", response);
+        }
+        run_handle.await??;
     }
-
     Ok(())
-
-    // let (command_channel_tx, command_channel_rx) = channel(8);
-    // let (response_channel_tx, mut response_channel_rx) = channel(8);
-    // let run_handle =
-    //     task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
-    // command_channel_tx
-    //     .send(RotelCommand::Set(Change::Volume(
-    //         Volume::try_from(10).unwrap(),
-    //     )))
-    //     .await?;
-    // while let Some(response) = response_channel_rx.recv().await {
-    //     info!("{:?}", response);
-    // }
-    // run_handle.await?
 }
 
 fn setup_logger(level: log::LevelFilter) -> Result<(), fern::InitError> {
