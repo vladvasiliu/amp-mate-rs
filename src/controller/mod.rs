@@ -56,7 +56,6 @@ async fn read_from_amp(
     let mut command_reader = buffered_reader.split(b'$');
     debug!("Started reader");
     while let Some(segment) = command_reader.next_segment().await?.as_deref() {
-        // match protocol::decode_amp_message(&segment) {
         match RotelResponse::try_from(segment) {
             Err(e) => warn!("Received unexpected message from amp: {}", e),
             Ok(response) => channel.send(response).await?,

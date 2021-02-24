@@ -1,5 +1,6 @@
 mod config;
 mod controller;
+mod polybar;
 
 use crate::config::get_config;
 use crate::controller::protocol::{Change, RotelCommand, Volume, StateToggle};
@@ -7,7 +8,8 @@ use crate::controller::RotelController;
 use color_eyre::eyre::{Result};
 use log::{info, LevelFilter};
 use tokio::sync::mpsc::channel;
-use tokio::task;
+use tokio::{select, task};
+use crate::polybar::PolybarOutput;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,14 +29,18 @@ async fn main() -> Result<()> {
         rotel.one_shot(RotelCommand::Set(Change::Mute(mute))).await?;
     } else {
         info!("Running in follow mode");
-        let (_command_channel_tx, command_channel_rx) = channel(8);
+        let (command_channel_tx, command_channel_rx) = channel(8);
         let (response_channel_tx, mut response_channel_rx) = channel(8);
-        let run_handle =
+        let mut polybar_output = PolybarOutput::new(command_channel_tx, response_channel_rx);
+
+        let rotel_handle =
             task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
-        while let Some(response) = response_channel_rx.recv().await {
-            info!("Rotel sent: {:?}", response);
+        let polybar_handle = task::spawn(async move { polybar_output.run().await });
+
+        select! {
+            _ = rotel_handle => {}
+            _ = polybar_handle => {}
         }
-        run_handle.await??;
     }
     Ok(())
 }
