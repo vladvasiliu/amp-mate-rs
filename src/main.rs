@@ -21,13 +21,8 @@ async fn main() -> Result<()> {
     let rotel = RotelController::new(address);
 
     if config.is_present("volume") {
-        let volume: &str = config.value_of("volume").unwrap();
-        if volume.eq_ignore_ascii_case("up") || volume.eq_ignore_ascii_case("down") {
-            return Err(eyre!("Function not implemented yet!"));
-        } else {
-            let value: Volume = volume.parse()?;
-            rotel.one_shot(RotelCommand::Set(Change::Volume(value))).await?;
-        }
+        let volume = config.value_of_t_or_exit::<Volume>("volume");
+        rotel.one_shot(RotelCommand::Set(Change::Volume(volume))).await?;
     } else if config.is_present("mute") {
         let mute: StateToggle = config.value_of_t_or_exit("mute");
         rotel.one_shot(RotelCommand::Set(Change::Mute(mute))).await?;

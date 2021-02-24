@@ -18,6 +18,36 @@ pub trait ToRotel {
 }
 
 #[derive(Debug)]
+pub enum Direction {
+    Up,
+    Down,
+}
+
+impl FromStr for Direction {
+    type Err = Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("up") {
+            Ok(Self::Up)
+        } else if s.eq_ignore_ascii_case("down") {
+            Ok(Self::Down)
+        } else {
+            Err(eyre!("wrong value for direction: {}", s))
+        }
+    }
+}
+
+impl std::fmt::Display for Direction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Up => write!(f, "up"),
+            Self::Down => write!(f, "down"),
+        }
+    }
+}
+
+
+#[derive(Debug)]
 pub enum StateToggle {
     On,
     Off,
@@ -46,7 +76,10 @@ impl std::fmt::Display for StateToggle {
 }
 
 #[derive(Debug)]
-pub struct Volume(u8);
+pub enum Volume {
+    Value(u8),
+    Direction(Direction)
+}
 
 impl TryFrom<u8> for Volume {
     type Error = Report;
@@ -55,31 +88,49 @@ impl TryFrom<u8> for Volume {
         if value > MAX_VOLUME {
             Err(eyre!("value for volume is out of bounds: {}", value))
         } else {
-            Ok(Self(value))
+            Ok(Self::Value(value))
         }
     }
 }
 
-impl From<Volume> for u8 {
-    fn from(volume: Volume) -> u8 {
-        volume.0
+impl ToRotel for Volume {
+    fn to_rotel(&self) -> String {
+        match self {
+            Self::Value(value) => format!("vol_{:02}", value),
+            Self::Direction(Direction::Down) => format!("vol_dwn"),
+            Self::Direction(Direction::Up) => format!("vol_up"),
+        }
     }
 }
+
+//
+// impl From<Volume> for u8 {
+//     fn from(volume: Volume) -> u8 {
+//         volume.0
+//     }
+// }
 
 impl FromStr for Volume {
     type Err = Report;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: u8 = s.parse().map_err(|err: ParseIntError| {
-            eyre!(format!("Failed to parse volume: {}", err.to_string()))
-        })?;
-        Self::try_from(value)
+        if let Ok(value) = s.parse::<u8>() {
+            Self::try_from(value)
+        } else if let Ok(value) = s.parse::<Direction>() {
+            Ok(Self::Direction(value))
+        } else {
+            Err(eyre!("Failed to parse volume value: {}", s))
+        }
     }
 }
 
 impl std::fmt::Display for Volume {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match self {
+            Self::Value(value) => write!(f, "{}", value),
+            Self::Direction(direction) => write!(f, "{}", direction),
+        }
+
     }
 }
 
@@ -173,7 +224,7 @@ impl Change {
             match self {
                 Change::Mute(value) => format!("mute_{}", value),
                 Change::Power(value) => format!("power_{}", value),
-                Change::Volume(volume) => format!("vol_{:02}", volume.0),
+                Change::Volume(volume) => volume.to_rotel(),
             }
         )
     }
