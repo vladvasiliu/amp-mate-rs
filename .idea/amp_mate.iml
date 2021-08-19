@@ -42,6 +42,22 @@
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-bbd4f2525704dc1b/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/tokio-adb7a25fc70a1f42/out" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/target/debug/build/tokio-fa6e84a470eafefc/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/async-trait-0549e696883ae1be/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/backtrace-3cfb195524b271f4/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/eyre-73ee3ac63d4d2d48/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/futures-core-ed66160b805878ea/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/indexmap-0e51a817b3620c75/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/libc-2e700cd8b0bdd92c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/log-22d65c1145239195/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/memchr-9b6e90e89c973352/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/miniz_oxide-651d7dde6ac76c3d/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-integer-e87a599436b3acfa/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-traits-583f5d3a7effc376/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro-error-attr-f58003bffd96ded5/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro-error-ff0c7bb2782a3809/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro2-b61e1bb2d2a4c8bd/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-3c4a3ab1403a706f/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/tokio-268cd27862ab875f/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
