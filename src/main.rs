@@ -3,14 +3,15 @@ mod controller;
 mod polybar;
 
 use crate::config::get_config;
-use crate::controller::protocol::{Change, Direction, RotelCommand, Volume, StateToggle};
+use crate::controller::protocol::{Change, Direction, RotelCommand, StateToggle, Volume};
 use crate::controller::RotelController;
-use color_eyre::eyre::{Result, Report};
-use log::{info, LevelFilter, error};
+use crate::polybar::{OutputFormatter, PolybarOutput};
+use color_eyre::eyre::{eyre, Report, Result};
+use log::{error, info, LevelFilter};
+use std::str::FromStr;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc::channel;
 use tokio::{select, task};
-use crate::polybar::PolybarOutput;
-use tokio::signal::unix::{signal, SignalKind};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -22,23 +23,43 @@ async fn main() -> Result<()> {
     let address: String = config.value_of_t_or_exit::<String>("amp");
     let rotel = RotelController::new(address);
 
-    if config.is_present("volume") {
-        let volume = config.value_of_t_or_exit::<Volume>("volume");
-        rotel.one_shot(RotelCommand::Set(Change::Volume(volume))).await?;
-    } else if config.is_present("mute") {
-        let mute: StateToggle = config.value_of_t_or_exit("mute");
-        rotel.one_shot(RotelCommand::Set(Change::Mute(mute))).await?;
-    } else {
-        info!("Running in follow mode");
-        let (command_channel_tx, command_channel_rx) = channel(8);
-        let (response_channel_tx, response_channel_rx) = channel(8);
-        let mut polybar_output = PolybarOutput::new(command_channel_tx.clone(), response_channel_rx);
+    match config.subcommand() {
+        Some(("one-shot", matches)) => {
+            if config.is_present("volume") {
+                let volume = matches.value_of_t_or_exit::<Volume>("volume");
+                rotel
+                    .one_shot(RotelCommand::Set(Change::Volume(volume)))
+                    .await?;
+            } else if config.is_present("mute") {
+                let mute: StateToggle = matches.value_of_t_or_exit("mute");
+                rotel
+                    .one_shot(RotelCommand::Set(Change::Mute(mute)))
+                    .await?;
+            }
+        }
+        Some(("follow", follow_matches)) => {
+            info!("Running in follow mode");
+            let volume_formatter =
+                OutputFormatter::from_str(follow_matches.value_of("format-volume").unwrap())
+                    .map_err(|e| eyre!("Invalid volume format: {}", e))?;
+            let mute_formatter =
+                OutputFormatter::from_str(follow_matches.value_of("format-mute").unwrap())
+                    .map_err(|e| eyre!("Invalid mute format: {}", e))?;
+            let (command_channel_tx, command_channel_rx) = channel(8);
+            let (response_channel_tx, response_channel_rx) = channel(8);
+            let mut polybar_output = PolybarOutput::new(
+                command_channel_tx.clone(),
+                response_channel_rx,
+                volume_formatter,
+                mute_formatter,
+            );
 
-        let rotel_handle =
-            task::spawn(async move { rotel.run(command_channel_rx, response_channel_tx).await });
-        let polybar_handle = task::spawn(async move { polybar_output.run().await });
-        let signal_listener = tokio::spawn(
-            async move {
+            let rotel_handle =
+                task::spawn(
+                    async move { rotel.run(command_channel_rx, response_channel_tx).await },
+                );
+            let polybar_handle = task::spawn(async move { polybar_output.run().await });
+            let signal_listener = tokio::spawn(async move {
                 loop {
                     let mut usr1_stream = signal(SignalKind::user_defined1())?;
                     let mut usr2_stream = signal(SignalKind::user_defined2())?;
@@ -54,15 +75,17 @@ async fn main() -> Result<()> {
                 Ok::<(), Report>(())
             });
 
-        select! {
-            rotel_result = rotel_handle => {
-                if let Err(err) = rotel_result.unwrap() {
-                    error!("Rotel controller error: {}", err);
+            select! {
+                rotel_result = rotel_handle => {
+                    if let Err(err) = rotel_result.unwrap() {
+                        error!("Rotel controller error: {}", err);
+                    }
                 }
+                _ = polybar_handle => {}
+                _ = signal_listener => {}
             }
-            _ = polybar_handle => {}
-            _ = signal_listener => {}
         }
+        _ => error!("Missing command"),
     }
     Ok(())
 }
