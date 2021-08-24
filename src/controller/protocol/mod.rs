@@ -270,9 +270,8 @@ impl TryFrom<&[u8]> for RotelResponse {
         let msg =
             std::str::from_utf8(in_msg).map_err(|err| eyre!("message is not UTF-8: {:?}", err))?;
         let (cmd, value) = msg
-            .split_once("=")
+            .split_once('=')
             .ok_or_else(|| eyre!("received message doesn't match expected pattern"))?;
-        let value = &value[1..];
         let rotel_message = match cmd {
             "volume" => RotelResponse::Volume(value.parse::<Volume>()?),
             "power" => RotelResponse::Power(value.parse::<StateToggle>()?),
