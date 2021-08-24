@@ -60,9 +60,9 @@ async fn main() -> Result<()> {
                 );
             let polybar_handle = task::spawn(async move { polybar_output.run().await });
             let signal_listener = tokio::spawn(async move {
+                let mut usr1_stream = signal(SignalKind::user_defined1())?;
+                let mut usr2_stream = signal(SignalKind::user_defined2())?;
                 loop {
-                    let mut usr1_stream = signal(SignalKind::user_defined1())?;
-                    let mut usr2_stream = signal(SignalKind::user_defined2())?;
                     let command = select! {
                         _ = usr1_stream.recv() => { RotelCommand::Set(Change::Volume(Volume::Direction(Direction::Up)))}
                         _ = usr2_stream.recv() => { RotelCommand::Set(Change::Volume(Volume::Direction(Direction::Down)))}
