@@ -46,7 +46,6 @@ impl std::fmt::Display for Direction {
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 pub enum StateToggle {
     On,
@@ -78,7 +77,7 @@ impl std::fmt::Display for StateToggle {
 #[derive(Debug)]
 pub enum Volume {
     Value(u8),
-    Direction(Direction)
+    Direction(Direction),
 }
 
 impl TryFrom<u8> for Volume {
@@ -130,7 +129,6 @@ impl std::fmt::Display for Volume {
             Self::Value(value) => write!(f, "{}", value),
             Self::Direction(direction) => write!(f, "{}", direction),
         }
-
     }
 }
 
@@ -271,10 +269,9 @@ impl TryFrom<&[u8]> for RotelResponse {
     fn try_from(in_msg: &[u8]) -> Result<Self> {
         let msg =
             std::str::from_utf8(in_msg).map_err(|err| eyre!("message is not UTF-8: {:?}", err))?;
-        let delim_index = msg
-            .find('=')
+        let (cmd, value) = msg
+            .split_once("=")
             .ok_or_else(|| eyre!("received message doesn't match expected pattern"))?;
-        let (cmd, value) = msg.split_at(delim_index);
         let value = &value[1..];
         let rotel_message = match cmd {
             "volume" => RotelResponse::Volume(value.parse::<Volume>()?),
