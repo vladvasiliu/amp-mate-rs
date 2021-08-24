@@ -8,6 +8,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::{task, try_join};
+use color_eyre::eyre::eyre;
 
 pub struct RotelController {
     address: String,
@@ -32,8 +33,10 @@ impl RotelController {
         command_channel: Receiver<RotelCommand>,
         response_channel: Sender<RotelResponse>,
     ) -> Result<()> {
-        let stream = TcpStream::connect(&self.address).await?;
-        info!("Connected to {}", stream.peer_addr()?);
+        let stream = TcpStream::connect(&self.address).await.map_err(|e| {
+            eyre!("Connection failed: {}", e)
+        })?;
+        info!("Connected to {}", stream.peer_addr().map_err(|e| eyre!("Failed to retrieve peer address: {}", e))?);
         stream.set_nodelay(true)?;
         let (read_half, write_half) = stream.into_split();
         let reader_task = task::spawn(async { read_from_amp(read_half, response_channel).await });

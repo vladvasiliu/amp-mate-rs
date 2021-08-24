@@ -6,7 +6,7 @@ use crate::config::get_config;
 use crate::controller::protocol::{Change, Direction, RotelCommand, Volume, StateToggle};
 use crate::controller::RotelController;
 use color_eyre::eyre::{Result, Report};
-use log::{info, LevelFilter};
+use log::{info, LevelFilter, error};
 use tokio::sync::mpsc::channel;
 use tokio::{select, task};
 use crate::polybar::PolybarOutput;
@@ -55,7 +55,11 @@ async fn main() -> Result<()> {
             });
 
         select! {
-            _ = rotel_handle => {}
+            rotel_result = rotel_handle => {
+                if let Err(err) = rotel_result.unwrap() {
+                    error!("Rotel controller error: {}", err);
+                }
+            }
             _ = polybar_handle => {}
             _ = signal_listener => {}
         }

@@ -7,7 +7,7 @@ An interface for controlling audio amplifiers.
 This projects aims to be a framework for interacting with "smart" audio equipment.
 
 My main use case is controlling a Rotel amplifier from the computer.
-The code aims to be general enough so as to be easily adapted to other audio equipment.
+The code aims to be general enough to be easily adapted to other audio equipment.
 
 A CLI will be provided for interfacing with a taskbar (such as Polybar).
 
@@ -23,7 +23,7 @@ A CLI will be provided for interfacing with a taskbar (such as Polybar).
 ### Amplifier
 
 This is tested on a Rotel RA-1572 with an ethernet connection.
-As the IP protocol seems similar, other Rotel models shoud have at least basic support.
+As the IP protocol seems similar, other Rotel models should have at least basic support.
 
 ### OS
 
