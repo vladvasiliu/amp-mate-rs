@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 38b88246ccc552bffaaf54259d064beeee434539  # frozen: v4.0.1 # pragma: allowlist secret
+    hooks:
+      - id: check-added-large-files
+      - id: check-byte-order-marker
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: detect-private-key
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+  - repo: https://github.com/Yelp/detect-secrets.git
+    rev: f6027a0521e044ba46e54611cabd787b7a88d1a9  # frozen: v1.1.0 # pragma: allowlist secret
+    hooks:
+      - id: detect-secrets
+        #        args: ['--baseline', '.secrets.baseline']
+        exclude: Cargo.lock

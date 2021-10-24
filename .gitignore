@@ -23,6 +23,7 @@ target/
 .idea/**/contentModel.xml
 
 # Sensitive or high-churn files
+.idea/**/aws.xml
 .idea/**/dataSources/
 .idea/**/dataSources.ids
 .idea/**/dataSources.local.xml
@@ -176,7 +177,6 @@ Sessionx.vim
 
 # Temporary
 .netrwhist
-*~
 # Auto-generated tag files
 tags
 # Persistent undo
